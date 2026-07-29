@@ -4,6 +4,14 @@ Django REST Framework and MySQL backend for two clients: an anonymous,
 read-only Citizen application and a JWT-protected Administrator/Responder
 application. The only account role is `administrator_responder`.
 
+## Deployment
+
+The repository includes a hardened multi-stage `Dockerfile`, a MySQL-backed
+`compose.yaml`, automatic migration startup, persistent media support, and a
+database-aware health check at `/health/`. A `nixpacks.toml` fallback supports
+platforms configured with Nixpacks. See [DEPLOYMENT.md](DEPLOYMENT.md) for the
+production environment, Coolify, HTTPS, first-user, backup, and rollout steps.
+
 ## XAMPP/MySQL setup
 
 Start MySQL in XAMPP and create a UTF-8 database named `hazard_hero`. The local

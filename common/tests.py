@@ -25,6 +25,8 @@ class HazardHeroAPITests(TestCase):
         self.contact=EmergencyContact.objects.create(organization_name="City Rescue",contact_type="Rescue Team",primary_phone_number="0917 111 2222",region="IX",province="Zamboanga del Norte",city_municipality="Dipolog",barangay="Central",availability="24/7",emergency_types=["Flood"],is_verified=True,is_active=True)
         self.alert=EmergencyAlert.objects.create(title="Flood Warning",message="Rising water",instructions="Evacuate now",alert_type="Flood",severity_level="Critical",status="Active",source="CDRRMO",region="IX",province="Zamboanga del Norte",city_municipality="Dipolog",barangay="Central",latitude="8.5020000",longitude="123.2820000",radius_km="20.00",affected_areas=["Central"],evacuation_required=True,recommended_evacuation_center=self.center,starts_at=timezone.now()-timedelta(hours=1),expires_at=timezone.now()+timedelta(hours=6),published_at=timezone.now(),is_public=True,is_active=True)
     def auth(self): self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access}")
+    def test_health_check(self):
+        response=self.client.get("/health/"); self.assertEqual(response.status_code,200); self.assertEqual(response.json(),{"status":"ok","database":"ok"})
     def test_all_citizen_modules_are_anonymous(self):
         for url in ["/api/citizen/go-bag/","/api/citizen/guidelines/","/api/citizen/evacuation-centers/","/api/citizen/emergency-contacts/","/api/citizen/alerts/"]:
             self.assertEqual(self.client.get(url).status_code,200,url)

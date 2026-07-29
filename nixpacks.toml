@@ -1,0 +1,22 @@
+providers = ["python"]
+
+[variables]
+PKG_CONFIG_PATH = "/root/.nix-profile/lib/pkgconfig"
+
+[phases.setup]
+nixPkgs = [
+    "...",
+    "pkg-config",
+]
+nixLibs = [
+    "...",
+    "libmysqlclient",
+]
+
+[phases.build]
+cmds = [
+    "SECRET_KEY=nixpacks-build-only USE_SQLITE=true python manage.py collectstatic --noinput",
+]
+
+[start]
+cmd = "python -m deploy.entrypoint"
