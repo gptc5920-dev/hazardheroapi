@@ -2,6 +2,7 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import environ
 from django.core.exceptions import ImproperlyConfigured
@@ -34,6 +35,32 @@ def get_list(*names, default=""):
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def normalize_deployment_host(value):
+    candidate = value.strip()
+    if not candidate:
+        return None
+    parsed = urlsplit(candidate if "://" in candidate else f"//{candidate}")
+    return parsed.hostname
+
+
+def normalize_deployment_origin(value):
+    candidate = value.strip()
+    if not candidate or "://" not in candidate:
+        return None
+    parsed = urlsplit(candidate)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return None
+    hostname = (
+        f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
+    )
+    port = f":{parsed.port}" if parsed.port else ""
+    return f"{parsed.scheme}://{hostname}{port}"
+
+
+def unique_nonempty(values):
+    return list(dict.fromkeys(value for value in values if value))
+
+
 DEBUG = get_bool("DEBUG", get_bool("DJANGO_DEBUG", False))
 SECRET_KEY = get_setting(
     "SECRET_KEY",
@@ -48,6 +75,18 @@ ALLOWED_HOSTS = get_list(
     "ALLOWED_HOSTS",
     "DJANGO_ALLOWED_HOSTS",
     default="localhost,127.0.0.1",
+)
+COOLIFY_URLS = get_list("COOLIFY_URL")
+COOLIFY_FQDNS = get_list("COOLIFY_FQDN")
+ALLOWED_HOSTS = unique_nonempty(
+    [
+        *ALLOWED_HOSTS,
+        *(normalize_deployment_host(value) for value in COOLIFY_FQDNS),
+        *(normalize_deployment_host(value) for value in COOLIFY_URLS),
+    ]
+)
+COOLIFY_ORIGINS = unique_nonempty(
+    normalize_deployment_origin(value) for value in COOLIFY_URLS
 )
 
 INSTALLED_APPS = [
@@ -213,7 +252,9 @@ SPECTACULAR_SETTINGS = {
 
 CORS_ALLOWED_ORIGINS = get_list("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_ALL_ORIGINS = DEBUG and not CORS_ALLOWED_ORIGINS
-CSRF_TRUSTED_ORIGINS = get_list("CSRF_TRUSTED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = unique_nonempty(
+    [*get_list("CSRF_TRUSTED_ORIGINS"), *COOLIFY_ORIGINS]
+)
 
 MAX_UPLOAD_SIZE = int(get_setting("MAX_UPLOAD_SIZE", default=str(10 * 1024 * 1024)))
 FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE

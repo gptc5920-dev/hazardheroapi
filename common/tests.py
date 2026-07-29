@@ -1,6 +1,6 @@
 from datetime import timedelta
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import SimpleTestCase,TestCase
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.utils import timezone
@@ -14,6 +14,26 @@ from go_bag.models import GoBagItem
 from guidelines.models import Guideline
 from guidelines.models import GuidelineTranslation,GuidelineMedia,GuidelineMediaTranslation
 from languages.models import Language
+from config.settings import normalize_deployment_host,normalize_deployment_origin
+
+
+class DeploymentSettingsTests(SimpleTestCase):
+    def test_coolify_hostname_normalization(self):
+        self.assertEqual(
+            normalize_deployment_host("http://api.example.com:8000/path"),
+            "api.example.com",
+        )
+        self.assertEqual(
+            normalize_deployment_host("api.example.com:8000"),
+            "api.example.com",
+        )
+
+    def test_coolify_origin_normalization(self):
+        self.assertEqual(
+            normalize_deployment_origin("https://api.example.com:8443/path"),
+            "https://api.example.com:8443",
+        )
+        self.assertIsNone(normalize_deployment_origin("api.example.com"))
 
 class HazardHeroAPITests(TestCase):
     def setUp(self):

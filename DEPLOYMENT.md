@@ -101,6 +101,11 @@ needed in the hosting panel. If the panel ignores this file, switch the build
 pack to Dockerfile instead of mixing Ubuntu MySQL headers into the Nix
 toolchain.
 
+The settings append Coolify's `COOLIFY_FQDN` and `COOLIFY_URL` values to
+`ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS`. The Nixpacks configuration includes
+the current temporary sslip.io URL as a fallback; replace it when assigning the
+permanent production domain.
+
 The build log must show the current dependency versions from
 `requirements.txt`. If it still shows `Django==5.0.14`, the platform is
 deploying an older Git commit or the wrong branch. Push the current `main`
