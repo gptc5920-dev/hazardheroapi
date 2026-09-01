@@ -1971,7 +1971,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/UserProfile'
           description: ''
     patch:
       operationId: responder_auth_profile_partial_update
@@ -1981,13 +1981,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedUser'
+              $ref: '#/components/schemas/PatchedUserProfile'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedUser'
+              $ref: '#/components/schemas/PatchedUserProfile'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedUser'
+              $ref: '#/components/schemas/PatchedUserProfile'
       security:
       - jwtAuth: []
       responses:
@@ -1995,7 +1995,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/UserProfile'
           description: ''
   /api/responder/auth/refresh/:
     post:
@@ -4594,11 +4594,15 @@ paths:
         schema:
           type: string
           enum:
+          - icon
           - image
+          - svg
           - video
         description: |-
           * `image` - Image
           * `video` - Video
+          * `svg` - SVG
+          * `icon` - Icon
       - name: ordering
         required: false
         in: query
@@ -6117,8 +6121,10 @@ components:
       properties:
         old_password:
           type: string
+          maxLength: 128
         new_password:
           type: string
+          maxLength: 128
       required:
       - new_password
       - old_password
@@ -6677,6 +6683,7 @@ components:
         email:
           type: string
           format: email
+          maxLength: 254
       required:
       - email
     GoBagCategoryEnum:
@@ -6791,6 +6798,8 @@ components:
           type: string
           format: uuid
           readOnly: true
+        source_type:
+          $ref: '#/components/schemas/SourceTypeEnum'
         media_type:
           $ref: '#/components/schemas/MediaTypeEnum'
         title:
@@ -6801,6 +6810,11 @@ components:
         media_file:
           type: string
           format: uri
+          nullable: true
+        external_url:
+          type: string
+          format: uri
+          maxLength: 500
         display_order:
           type: integer
           maximum: 9223372036854775807
@@ -6823,7 +6837,6 @@ components:
       - created_at
       - guideline
       - id
-      - media_file
       - media_type
       - title
       - updated_at
@@ -6961,8 +6974,10 @@ components:
         email:
           type: string
           format: email
+          maxLength: 254
         password:
           type: string
+          maxLength: 128
       required:
       - email
       - password
@@ -6977,10 +6992,14 @@ components:
       enum:
       - image
       - video
+      - svg
+      - icon
       type: string
       description: |-
         * `image` - Image
         * `video` - Video
+        * `svg` - SVG
+        * `icon` - Icon
     OperatingStatusEnum:
       enum:
       - Operational
@@ -6997,6 +7016,9 @@ components:
         * `Inactive` - Inactive
     PaginatedAlertTranslationList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7017,6 +7039,9 @@ components:
             $ref: '#/components/schemas/AlertTranslation'
     PaginatedAuditList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7037,6 +7062,9 @@ components:
             $ref: '#/components/schemas/Audit'
     PaginatedCalamityTranslationList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7057,6 +7085,9 @@ components:
             $ref: '#/components/schemas/CalamityTranslation'
     PaginatedCitizenAlertList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7077,6 +7108,9 @@ components:
             $ref: '#/components/schemas/CitizenAlert'
     PaginatedCitizenContactList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7097,6 +7131,9 @@ components:
             $ref: '#/components/schemas/CitizenContact'
     PaginatedCitizenEvacuationList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7117,6 +7154,9 @@ components:
             $ref: '#/components/schemas/CitizenEvacuation'
     PaginatedCitizenGoBagList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7137,6 +7177,9 @@ components:
             $ref: '#/components/schemas/CitizenGoBag'
     PaginatedCitizenGuidelineList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7157,6 +7200,9 @@ components:
             $ref: '#/components/schemas/CitizenGuideline'
     PaginatedContactTranslationList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7177,6 +7223,9 @@ components:
             $ref: '#/components/schemas/ContactTranslation'
     PaginatedEvacuationTranslationList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7197,6 +7246,9 @@ components:
             $ref: '#/components/schemas/EvacuationTranslation'
     PaginatedGoBagTranslationList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7217,6 +7269,9 @@ components:
             $ref: '#/components/schemas/GoBagTranslation'
     PaginatedGuidelineMediaList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7237,6 +7292,9 @@ components:
             $ref: '#/components/schemas/GuidelineMedia'
     PaginatedGuidelineMediaTranslationList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7257,6 +7315,9 @@ components:
             $ref: '#/components/schemas/GuidelineMediaTranslation'
     PaginatedGuidelineTranslationList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7277,6 +7338,9 @@ components:
             $ref: '#/components/schemas/GuidelineTranslation'
     PaginatedResponderAlertList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7297,6 +7361,9 @@ components:
             $ref: '#/components/schemas/ResponderAlert'
     PaginatedResponderCalamityList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7317,6 +7384,9 @@ components:
             $ref: '#/components/schemas/ResponderCalamity'
     PaginatedResponderContactList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7337,6 +7407,9 @@ components:
             $ref: '#/components/schemas/ResponderContact'
     PaginatedResponderEvacuationList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7357,6 +7430,9 @@ components:
             $ref: '#/components/schemas/ResponderEvacuation'
     PaginatedResponderGoBagList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7377,6 +7453,9 @@ components:
             $ref: '#/components/schemas/ResponderGoBag'
     PaginatedResponderGuidelineList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7397,6 +7476,9 @@ components:
             $ref: '#/components/schemas/ResponderGuideline'
     PaginatedResponderLanguageList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7417,6 +7499,9 @@ components:
             $ref: '#/components/schemas/ResponderLanguage'
     PaginatedUserList:
       type: object
+      required:
+      - count
+      - results
       properties:
         count:
           type: integer
@@ -7667,6 +7752,8 @@ components:
           type: string
           format: uuid
           readOnly: true
+        source_type:
+          $ref: '#/components/schemas/SourceTypeEnum'
         media_type:
           $ref: '#/components/schemas/MediaTypeEnum'
         title:
@@ -7677,6 +7764,11 @@ components:
         media_file:
           type: string
           format: uri
+          nullable: true
+        external_url:
+          type: string
+          format: uri
+          maxLength: 500
         display_order:
           type: integer
           maximum: 9223372036854775807
@@ -8373,6 +8465,68 @@ components:
         password:
           type: string
           writeOnly: true
+          maxLength: 128
+    PatchedUserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 100
+        middle_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone_number:
+          type: string
+          maxLength: 30
+        position:
+          type: string
+          maxLength: 120
+        office:
+          type: string
+          maxLength: 160
+        profile_image:
+          type: string
+          format: uri
+          nullable: true
+        role:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        is_verified:
+          type: boolean
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     PriorityLevelEnum:
       enum:
       - Low
@@ -8411,6 +8565,7 @@ components:
           type: string
         new_password:
           type: string
+          maxLength: 128
       required:
       - new_password
       - token
@@ -9067,6 +9222,14 @@ components:
         * `Warning` - Warning
         * `Severe` - Severe
         * `Critical` - Critical
+    SourceTypeEnum:
+      enum:
+      - upload
+      - link
+      type: string
+      description: |-
+        * `upload` - Uploaded file
+        * `link` - Embedded link
     SupportedLanguageCodeEnum:
       enum:
       - en
@@ -9151,12 +9314,86 @@ components:
         password:
           type: string
           writeOnly: true
+          maxLength: 128
       required:
       - created_at
       - email
       - first_name
       - full_name
       - id
+      - last_login
+      - last_name
+      - role
+      - updated_at
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 100
+        middle_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone_number:
+          type: string
+          maxLength: 30
+        position:
+          type: string
+          maxLength: 120
+        office:
+          type: string
+          maxLength: 160
+        profile_image:
+          type: string
+          format: uri
+          nullable: true
+        role:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        is_verified:
+          type: boolean
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - first_name
+      - full_name
+      - id
+      - is_active
+      - is_verified
       - last_login
       - last_name
       - role

@@ -35,7 +35,8 @@ class TranslationBase(models.Model):
     class Meta: abstract=True
     def save(self,*a,**k):
         if self.language_id:
-            code=Language.objects.only("language_code").get(pk=self.language_id).language_code
+            language=self._state.fields_cache.get("language")
+            code=language.language_code if language else Language.objects.only("language_code").get(pk=self.language_id).language_code
             if code not in SUPPORTED_CODES: raise ValidationError("Unsupported translation language.")
         if self.pk:
             old=type(self).objects.filter(pk=self.pk).first()

@@ -7,6 +7,7 @@ from rest_framework import permissions,status,viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -38,10 +39,10 @@ class LogoutView(GenericAPIView):
         except Exception: return Response({"refresh":["Invalid or expired refresh token."]},status=400)
         audit(request,"logout","accounts",request.user); return Response(status=204)
 class ProfileView(GenericAPIView):
-    serializer_class=UserSerializer
-    def get(self,r): return Response(UserSerializer(r.user,context={"request":r}).data)
+    serializer_class=UserProfileSerializer
+    def get(self,r): return Response(self.get_serializer(r.user).data)
     def patch(self,r):
-        s=UserSerializer(r.user,data=r.data,partial=True,context={"request":r}); s.is_valid(raise_exception=True); s.save(); audit(r,"update","accounts",r.user); return Response(s.data)
+        s=self.get_serializer(r.user,data=r.data,partial=True); s.is_valid(raise_exception=True); s.save(); audit(r,"update_profile","accounts",r.user); return Response(s.data)
 class ChangePasswordView(GenericAPIView):
     serializer_class=ChangePasswordSerializer
     def post(self,r):
@@ -71,11 +72,18 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_create(self,s): obj=s.save(); audit(self.request,"account_creation","accounts",obj,new=s.data)
     def destroy(self,r,*a,**k): return Response({"detail":"Use deactivate; accounts are retained for audit integrity."},status=405)
     @action(detail=True,methods=["post"])
-    def activate(self,r,pk=None): obj=self.get_object(); obj.is_active=True; obj.save(); audit(r,"account_activation","accounts",obj); return Response(self.get_serializer(obj).data)
+    def activate(self,r,pk=None):
+        obj=self.get_object()
+        if obj.is_active: raise ValidationError({"is_active":["This account is already active."]})
+        obj.is_active=True; obj.save(); audit(r,"account_activation","accounts",obj); return Response(self.get_serializer(obj).data)
     @action(detail=True,methods=["post"])
     def deactivate(self,r,pk=None):
         obj=self.get_object()
         if obj==r.user: return Response({"detail":"You cannot deactivate your own account."},status=400)
+        if not obj.is_active: raise ValidationError({"is_active":["This account is already inactive."]})
         obj.is_active=False; obj.save(); audit(r,"account_deactivation","accounts",obj); return Response(self.get_serializer(obj).data)
     @action(detail=True,methods=["post"])
-    def verify(self,r,pk=None): obj=self.get_object(); obj.is_verified=True; obj.save(); audit(r,"verify","accounts",obj); return Response(self.get_serializer(obj).data)
+    def verify(self,r,pk=None):
+        obj=self.get_object()
+        if obj.is_verified: raise ValidationError({"is_verified":["This account is already verified."]})
+        obj.is_verified=True; obj.save(); audit(r,"verify","accounts",obj); return Response(self.get_serializer(obj).data)

@@ -2,9 +2,9 @@ providers = ["python"]
 
 [variables]
 PKG_CONFIG_PATH = "/root/.nix-profile/lib/pkgconfig"
-COOLIFY_FQDN = "pccsg4g4k8ws8cggw4o4oso4.76.13.217.76.sslip.io"
-COOLIFY_URL = "http://pccsg4g4k8ws8cggw4o4oso4.76.13.217.76.sslip.io"
-SECURE_SSL_REDIRECT = "false"
+COOLIFY_FQDN = "hazardheroapi.site"
+COOLIFY_URL = "https://hazardheroapi.site"
+SECURE_SSL_REDIRECT = "true"
 
 [phases.setup]
 nixPkgs = [

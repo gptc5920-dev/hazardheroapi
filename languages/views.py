@@ -1,9 +1,11 @@
 from drf_spectacular.utils import extend_schema
+from uuid import UUID
 from django.utils import timezone
 from django.db.models import Case,When,Value,IntegerField
 from rest_framework import mixins,viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from audit_logs.utils import audit
 from common.permissions import PublicReadOnly,IsAdministratorResponder
 from .models import Language
@@ -20,7 +22,10 @@ class TranslationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs=self.queryset.select_related("language")
         parent=self.request.query_params.get(self.parent_field)
-        return qs.filter(**{self.parent_field:parent}) if parent else qs
+        return qs.filter(**{self.parent_field:self._validated_parent(parent)}) if parent else qs
+    def _validated_parent(self,value):
+        try: return UUID(str(value))
+        except (TypeError,ValueError,AttributeError): raise ValidationError({self.parent_field:["Enter a valid UUID."]})
     def perform_create(self,s): obj=s.save(created_by=self.request.user,updated_by=self.request.user); audit(self.request,"create_translation",self.module,obj)
     def perform_update(self,s): obj=s.save(updated_by=self.request.user); audit(self.request,"update_translation",self.module,obj)
     def perform_destroy(self,obj): audit(self.request,"delete_translation",self.module,obj); obj.delete()
@@ -33,8 +38,9 @@ class TranslationViewSet(viewsets.ModelViewSet):
     def needs_review(self,r,pk=None): return self._status(r,self.get_object(),"Needs Review","review_translation")
     @action(detail=False,methods=["post"],url_path="copy-english")
     def copy_english(self,r):
-        parent_id=r.data.get(self.parent_field); code=r.data.get("language")
+        parent_id=r.data.get(self.parent_field); code=str(r.data.get("language","")).lower()
         if not parent_id or code not in {"fil","ceb"}: return Response({"detail":f"{self.parent_field} and target language fil or ceb are required."},status=400)
+        parent_id=self._validated_parent(parent_id)
         english=self.queryset.filter(**{self.parent_field:parent_id,"language__language_code":"en"}).first()
         if not english: return Response({"detail":"English translation is missing."},status=404)
         target_language=Language.objects.get(language_code=code); defaults={field:getattr(english,field) for field in english.translated_fields}; defaults.update(status="Draft",updated_by=r.user)

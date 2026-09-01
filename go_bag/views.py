@@ -1,4 +1,5 @@
 from drf_spectacular.utils import extend_schema
+from django.db.models import Prefetch
 from rest_framework import viewsets
 from common.permissions import PublicReadOnly
 from common.views import ResponderModelViewSet
@@ -10,7 +11,7 @@ from .models import GoBagItem,GoBagItemTranslation
 from .serializers import *
 @extend_schema(tags=["Citizen – Go Bag"])
 class CitizenGoBagViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset=GoBagItem.objects.filter(is_active=True); serializer_class=CitizenGoBagSerializer; permission_classes=[PublicReadOnly]; authentication_classes=[]; filterset_fields=["category","priority_level","is_required"]; search_fields=["name","description"]; ordering_fields=["name","display_order"]
+    queryset=GoBagItem.objects.filter(is_active=True).prefetch_related(Prefetch("translations",queryset=GoBagItemTranslation.objects.filter(status="Published").select_related("language"),to_attr="_published_translations")); serializer_class=CitizenGoBagSerializer; permission_classes=[PublicReadOnly]; authentication_classes=[]; filterset_fields=["category","priority_level","is_required"]; search_fields=["name","description"]; ordering_fields=["name","display_order"]
     def get_serializer_context(self): context=super().get_serializer_context(); context["language"]=requested_language(self.request); return context
 @extend_schema(tags=["Responder – Go Bag"])
 class ResponderGoBagViewSet(ResponderModelViewSet):

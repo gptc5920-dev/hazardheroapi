@@ -6,11 +6,19 @@ def requested_language(request):
     if not Language.objects.filter(language_code=code,is_active=True).exists(): raise ValidationError({"language":["This language is currently inactive."]})
     return code
 def choose_translation(parent,related_name,code):
-    qs=getattr(parent,related_name).filter(status="Published").select_related("language")
-    requested=next((x for x in qs if x.language.language_code==code),None)
-    english=next((x for x in qs if x.language.language_code=="en"),None)
+    cache=getattr(parent,"_translation_selection_cache",None)
+    if cache is None:
+        cache={}; setattr(parent,"_translation_selection_cache",cache)
+    key=(related_name,code)
+    if key in cache: return cache[key]
+    prefetched=getattr(parent,"_published_translations",None)
+    translations=prefetched if prefetched is not None else list(getattr(parent,related_name).filter(status="Published").select_related("language"))
+    requested=next((x for x in translations if x.language.language_code==code),None)
+    english=next((x for x in translations if x.language.language_code=="en"),None)
     chosen=requested or english
-    return chosen,(chosen.language.language_code if chosen else "en"),bool(code!="en" and (not requested))
+    result=chosen,(chosen.language.language_code if chosen else "en"),bool(code!="en" and (not requested))
+    cache[key]=result
+    return result
 def completion(parent,related_name):
     existing={x.language.language_code:x.status for x in getattr(parent,related_name).select_related("language")}
     return {code:existing.get(code,"Missing") for code in SUPPORTED_CODES}

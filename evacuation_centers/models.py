@@ -17,6 +17,9 @@ class EvacuationCenter(TimestampedSoftDeleteModel):
         self.full_clean(); self.available_slots=self.total_capacity-self.current_occupancy
         if self.available_slots==0: self.availability_status="Full"; self.operating_status="Full"
         elif self.operating_status in ["Temporarily Closed","Inactive","Under Maintenance"]: self.availability_status="Closed"
+        else:
+            if self.operating_status=="Full": self.operating_status="Operational"
+            if self.availability_status in ["Full","Closed"]: self.availability_status="Available"
         self.last_capacity_update=timezone.now(); super().save(*a,**k)
     def __str__(self): return self.name
 class EvacuationCenterTranslation(TranslationBase):

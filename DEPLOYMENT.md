@@ -102,9 +102,9 @@ pack to Dockerfile instead of mixing Ubuntu MySQL headers into the Nix
 toolchain.
 
 The settings append Coolify's `COOLIFY_FQDN` and `COOLIFY_URL` values to
-`ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS`. The Nixpacks configuration includes
-the current temporary sslip.io URL as a fallback; replace it when assigning the
-permanent production domain.
+`ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS`. The Nixpacks configuration uses
+`https://hazardheroapi.site` as the production domain and enables HTTPS
+redirects.
 
 The build log must show the current dependency versions from
 `requirements.txt`. If it still shows `Django==5.0.14`, the platform is

@@ -2,7 +2,8 @@ from datetime import timedelta
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase,TestCase
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError,connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 from accounts.models import User
@@ -10,7 +11,7 @@ from alerts.models import EmergencyAlert
 from audit_logs.models import AuditLog
 from emergency_contacts.models import EmergencyContact
 from evacuation_centers.models import EvacuationCenter
-from go_bag.models import GoBagItem
+from go_bag.models import GoBagItem,GoBagItemTranslation
 from guidelines.models import Guideline
 from guidelines.models import GuidelineTranslation,GuidelineMedia,GuidelineMediaTranslation
 from languages.models import Language
@@ -55,9 +56,14 @@ class HazardHeroAPITests(TestCase):
     def test_public_exclusions(self):
         self.guideline.status="Draft"; self.guideline.save(); self.contact.is_verified=False; self.contact.save(); self.item.soft_delete(); self.alert.expires_at=timezone.now()-timedelta(minutes=1); EmergencyAlert.all_objects.filter(pk=self.alert.pk).update(expires_at=self.alert.expires_at)
         self.assertEqual(self.client.get("/api/citizen/guidelines/").data["count"],0); self.assertEqual(self.client.get("/api/citizen/emergency-contacts/").data["count"],0); self.assertEqual(self.client.get("/api/citizen/go-bag/").data["count"],0); self.assertEqual(self.client.get("/api/citizen/alerts/").data["count"],0)
+    def test_started_scheduled_alert_becomes_public_without_a_worker(self):
+        self.alert.status="Scheduled"; self.alert.save(); response=self.client.get("/api/citizen/alerts/"); self.assertEqual(response.data["count"],1); self.assertEqual(response.data["results"][0]["id"],str(self.alert.pk))
     def test_nearby_endpoints(self):
         query={"latitude":8.5,"longitude":123.28,"radius":10}
         for url in ["/api/citizen/evacuation-centers/nearby/","/api/citizen/alerts/nearby/"]: self.assertEqual(len(self.client.get(url,query).data),1)
+    def test_nearby_endpoints_reject_invalid_or_excessive_ranges(self):
+        for query in [{"latitude":"nan","longitude":123.28},{"latitude":91,"longitude":123.28},{"latitude":8.5,"longitude":123.28,"radius":0},{"latitude":8.5,"longitude":123.28,"radius":501}]:
+            for url in ["/api/citizen/evacuation-centers/nearby/","/api/citizen/alerts/nearby/"]: self.assertEqual(self.client.get(url,query).status_code,400)
     def test_jwt_refresh_and_logout_blacklist(self):
         rotated=self.client.post("/api/responder/auth/refresh/",{"refresh":self.refresh},format="json"); self.assertEqual(rotated.status_code,200); current=rotated.data["refresh"]
         self.auth(); self.assertEqual(self.client.post("/api/responder/auth/logout/",{"refresh":current},format="json").status_code,204)
@@ -73,6 +79,8 @@ class HazardHeroAPITests(TestCase):
         self.auth(); self.guideline.status="Draft"; self.guideline.save(); self.assertEqual(self.client.post(f"/api/responder/guidelines/{self.guideline.pk}/publish/").data["status"],"Published"); self.assertEqual(self.client.post(f"/api/responder/guidelines/{self.guideline.pk}/archive/").data["status"],"Archived")
     def test_capacity_calculation_and_validation(self):
         self.auth(); result=self.client.patch(f"/api/responder/evacuation-centers/{self.center.pk}/capacity/",{"current_occupancy":40},format="json"); self.assertEqual(result.data["available_slots"],60); self.assertEqual(self.client.patch(f"/api/responder/evacuation-centers/{self.center.pk}/capacity/",{"current_occupancy":101},format="json").status_code,400)
+        self.assertEqual(self.client.patch(f"/api/responder/evacuation-centers/{self.center.pk}/capacity/",{},format="json").status_code,400); self.assertEqual(self.client.patch(f"/api/responder/evacuation-centers/{self.center.pk}/capacity/",{"name":"Ignored"},format="json").status_code,400)
+        self.center.current_occupancy=100; self.center.save(); self.assertEqual(self.center.operating_status,"Full"); recovered=self.client.patch(f"/api/responder/evacuation-centers/{self.center.pk}/capacity/",{"current_occupancy":10},format="json"); self.assertEqual(recovered.data["operating_status"],"Operational"); self.assertEqual(recovered.data["availability_status"],"Available")
     def test_contact_verify_and_alert_transitions(self):
         self.auth(); self.contact.is_verified=False; self.contact.save(); self.assertTrue(self.client.post(f"/api/responder/emergency-contacts/{self.contact.pk}/verify/").data["is_verified"]); self.assertEqual(self.client.post(f"/api/responder/alerts/{self.alert.pk}/resolve/").data["status"],"Resolved")
     def test_alert_validation(self):
@@ -82,6 +90,17 @@ class HazardHeroAPITests(TestCase):
     def test_search_filter_and_audit(self):
         self.assertEqual(self.client.get("/api/citizen/go-bag/",{"search":"Drinking"}).data["count"],1); self.auth(); self.client.patch(f"/api/responder/go-bag/{self.item.pk}/",{"quantity":4},format="json"); self.assertTrue(AuditLog.objects.filter(action="update",module="go_bag").exists()); self.assertEqual(self.client.get("/api/responder/audit-logs/").status_code,200)
     def test_responder_requires_authentication(self): self.assertEqual(self.client.get("/api/responder/go-bag/").status_code,401)
+    def test_profile_rejects_account_state_and_password_changes(self):
+        self.auth(); original_password=self.user.password; response=self.client.patch("/api/responder/auth/profile/",{"password":"ReplacementPass123!","is_verified":False},format="json"); self.assertEqual(response.status_code,400); self.user.refresh_from_db(); self.assertTrue(self.user.is_verified); self.assertEqual(self.user.password,original_password)
+
+    def test_public_translation_queries_are_bounded(self):
+        language=Language.objects.get(language_code="en")
+        for index in range(5):
+            item=GoBagItem.objects.create(name=f"Water {index}",description="Supply",category="Food and Water",quantity=1,unit="bottle",priority_level="High",is_active=True)
+            GoBagItemTranslation.objects.create(item=item,language=language,translated_name=f"Translated {index}",translated_description="Translated supply",status="Published")
+        with CaptureQueriesContext(connection) as queries:
+            response=self.client.get("/api/citizen/go-bag/",{"language":"en","page_size":100})
+        self.assertEqual(response.status_code,200); self.assertEqual(response.data["count"],6); self.assertLessEqual(len(queries),5)
 
     def _translation(self,code,status="Published",title=None):
         return GuidelineTranslation.objects.create(guideline=self.guideline,language=Language.objects.get(language_code=code),translated_title=title or f"{code} title",translated_summary=f"{code} summary",translated_content=f"{code} content",translated_safety_instructions=f"{code} safety",status=status)
@@ -112,6 +131,8 @@ class HazardHeroAPITests(TestCase):
         t=self._translation("fil",status="Draft"); old=t.version; t.translated_content="updated"; t.save(); self.assertEqual(t.version,old+1); self.auth(); result=self.client.post(f"/api/responder/guideline-translations/{t.pk}/publish/"); self.assertEqual(result.status_code,200); self.assertEqual(result.data["status"],"Published")
     def test_copy_english_translation_starting_point(self):
         english=self._translation("en",title="English source"); self.auth(); result=self.client.post("/api/responder/guideline-translations/copy-english/",{"guideline":str(self.guideline.pk),"language":"fil"},format="json"); self.assertEqual(result.status_code,201); self.assertEqual(result.data["translated_title"],english.translated_title); self.assertEqual(result.data["status"],"Draft")
+    def test_translation_filters_reject_malformed_parent_ids(self):
+        self.auth(); self.assertEqual(self.client.get("/api/responder/guideline-translations/",{"guideline":"not-a-uuid"}).status_code,400); self.assertEqual(self.client.post("/api/responder/guideline-translations/copy-english/",{"guideline":"not-a-uuid","language":"fil"},format="json").status_code,400)
     def test_offline_filipino_and_bisaya_manifests(self):
         self._translation("fil",title="Filipino offline"); self._translation("ceb",title="Bisaya offline")
         for code,title in [("fil","Filipino offline"),("ceb","Bisaya offline")]:

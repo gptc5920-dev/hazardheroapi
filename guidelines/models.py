@@ -26,10 +26,13 @@ class GuidelineTranslation(TranslationBase):
     translated_fields=("translated_title","translated_summary","translated_content","translated_safety_instructions")
     class Meta: constraints=[models.UniqueConstraint(fields=["guideline","language"],name="unique_guideline_language")]
 class GuidelineMedia(models.Model):
-    TYPES=[("image","Image"),("video","Video")]
+    TYPES=[("image","Image"),("video","Video"),("svg","SVG"),("icon","Icon")]
+    SOURCES=[("upload","Uploaded file"),("link","Embedded link")]
     id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False); guideline=models.ForeignKey(Guideline,on_delete=models.CASCADE,related_name="media")
-    media_type=models.CharField(max_length=5,choices=TYPES); title=models.CharField(max_length=255); description=models.TextField(blank=True); media_file=models.FileField(upload_to="guidelines/media/",validators=[validate_media_upload]); display_order=models.PositiveIntegerField(default=0); is_active=models.BooleanField(default=True); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
-    class Meta: ordering=["display_order","created_at"]
+    source_type=models.CharField(max_length=10,choices=SOURCES,default="upload"); media_type=models.CharField(max_length=5,choices=TYPES); title=models.CharField(max_length=255); description=models.TextField(blank=True); media_file=models.FileField(upload_to="guidelines/media/",null=True,blank=True,validators=[validate_media_upload]); external_url=models.URLField(max_length=500,blank=True); display_order=models.PositiveIntegerField(default=0); is_active=models.BooleanField(default=True); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
+    class Meta:
+        ordering=["display_order","created_at"]
+        constraints=[models.CheckConstraint(condition=(models.Q(source_type="upload")&~models.Q(media_file="")&models.Q(external_url=""))|(models.Q(source_type="link")&models.Q(media_file="")&~models.Q(external_url="")),name="guideline_media_has_one_source")]
 class GuidelineMediaTranslation(TranslationBase):
     media=models.ForeignKey(GuidelineMedia,on_delete=models.CASCADE,related_name="translations")
     translated_title=models.CharField(max_length=255); translated_description=models.TextField(blank=True); caption_text=models.TextField(blank=True); subtitle_file=models.FileField(upload_to="guidelines/subtitles/",null=True,blank=True,validators=[validate_subtitle]); alternative_media_file=models.FileField(upload_to="guidelines/media/language/",null=True,blank=True,validators=[validate_media_upload])
